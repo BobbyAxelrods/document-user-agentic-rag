@@ -1,6 +1,6 @@
-# PRUHK Agentic RAG V4
+# Enterprise Agentic RAG (USER PERSONA)
 
-This project implements an Agentic RAG (Retrieval-Augmented Generation) system for Prudential, designed to manage the lifecycle of enterprise documents and orchestrate RAG queries with Golden Dialogue tone refinement.
+This project implements an Agentic RAG (Retrieval-Augmented Generation) system for enterprise, designed to manage the lifecycle of enterprise documents and orchestrate RAG queries with Golden Dialogue tone refinement.
 
 ## 🚀 Features
 
@@ -82,7 +82,7 @@ Run validation against a set of test cases defined in an Excel file.
 ## 📁 Project Structure
 
 ```
-PRUHK-AgenticRAG-V4/
+ENTERPRISE-AgenticRAG-V4/
 ├── rag/
 │   ├── agents.py           # Main agent definition and initialization
 │   ├── config.py           # Configuration constants (Bucket names, Project ID)
