@@ -123,6 +123,38 @@ def _evaluate_with_llm(query: str, response: str, ground_truth: str) -> Dict[str
     except Exception as e:
         return {"score": 0.0, "reason": f"Evaluation failed: {str(e)}"}
 
+def _generate_answer(query: str, context: str) -> str:
+    """
+    Generates an answer based on the query and retrieved context using the LLM.
+    """
+    try:
+        model_name = os.getenv("AZURE", "azure/gpt-4o")
+        
+        prompt = f"""
+        You are a helpful assistant. Answer the user's query based ONLY on the provided context.
+        If the answer is not in the context, say "I cannot answer this based on the provided information."
+        
+        Context:
+        {context}
+        
+        Query: 
+        {query}
+        
+        Answer:
+        """
+        
+        completion = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Generation failed: {str(e)}"
+
 # =================MAIN PROCESS =====================
 # =================MAIN PROCESS =====================
 def automated_evaluation_testcase(
@@ -246,9 +278,15 @@ def automated_evaluation_testcase(
             if rag_result.get("status") == "success":
                  if "results" in rag_result and rag_result["results"]:
                      # Get top 1 chunks
-                     top_results = rag_result["results"][:1]
-                     response_text = "\n\n".join([r.get("text", "") for r in top_results])
+                     top_results = rag_result["results"][:5]
+                     
+                     # Prepare context from chunks
+                     context_text = "\n\n".join([r.get("text", "") for r in top_results])
                      chunks = [r.get("text", "") for r in top_results]
+                     
+                     # Generate Answer using LLM
+                     response_text = _generate_answer(query_text, context_text)
+                     
                      # Extract citations (source_uri)
                      citations = list(set([r.get("source_uri", "Unknown") for r in rag_result["results"] if r.get("source_uri")]))
             
