@@ -2,6 +2,7 @@ import os
 import hashlib
 import json
 import io
+import time
 from typing import Any, Optional, List, Dict
 import pandas as pd 
 import datetime
@@ -145,13 +146,17 @@ def automated_evaluation_testcase(
 
     # Read Excel 
     df = pd.read_excel(excel_path)
-    # get cols query 
-    cols = [str(c).lower().strip() for c in df.columns]
-    df.columns = cols
-
-    # Identify columns (flexible)
-    query_col = next((c for c in df.columns if c in ['query', 'question', 'input']), df.columns[0])
-    truth_col = next((c for c in df.columns if c in ['ground_truth', 'answer', 'expected', 'truth']), None)
+    
+    # Identify columns (flexible) by checking lowercase stripped versions but keeping original headers
+    # Create a mapping for easy lookup
+    col_map = {str(c).lower().strip(): c for c in df.columns}
+    
+    # Find actual column names in the dataframe
+    query_col_name = next((c for c in col_map.keys() if c in ['query', 'question', 'input', 'user query']), list(col_map.keys())[0])
+    truth_col_name = next((c for c in col_map.keys() if c in ['ground_truth', 'ground truth', 'groundtruth', 'expected', 'truth', 'answer', 'correct answer']), None)
+    
+    query_col = col_map[query_col_name]
+    truth_col = col_map[truth_col_name] if truth_col_name else None
 
     # Resolve Corpus ID
     corpus_id = candidate_corpus
@@ -224,6 +229,9 @@ def automated_evaluation_testcase(
     
     try:
         for index, row in df.iterrows():
+            # Add delay to avoid hitting rate limits (LLM/Vertex AI quotas)
+            time.sleep(2)
+            
             query_text = str(row[query_col])
             # Use the identified truth column, but keep strict N/A handling for evaluation
             ground_truth = str(row[truth_col]) if truth_col and truth_col in df.columns else "N/A"
@@ -234,9 +242,13 @@ def automated_evaluation_testcase(
             
             response_text = "No response"
             citations = []
+            chunks = []
             if rag_result.get("status") == "success":
                  if "results" in rag_result and rag_result["results"]:
-                     response_text = "\n\n".join([r.get("text", "") for r in rag_result["results"][:3]])
+                     # Get top 1 chunks
+                     top_results = rag_result["results"][:1]
+                     response_text = "\n\n".join([r.get("text", "") for r in top_results])
+                     chunks = [r.get("text", "") for r in top_results]
                      # Extract citations (source_uri)
                      citations = list(set([r.get("source_uri", "Unknown") for r in rag_result["results"] if r.get("source_uri")]))
             
@@ -254,6 +266,11 @@ def automated_evaluation_testcase(
             
             # 2. Append new results columns
             out_row['rag_response'] = response_text[:1000] + "..." if len(response_text) > 1000 else response_text
+            
+            # Add top 1 chunk
+            for i in range(1):
+                out_row[f'chunk_{i+1}'] = chunks[i] if i < len(chunks) else ""
+
             out_row['citations'] = ", ".join(citations)
             out_row['score'] = score
             out_row['status'] = "PASS" if is_pass else "FAIL"
@@ -320,5 +337,5 @@ def automated_evaluation_testcase(
             "failed_row_ids": failures,
             "passed_row_ids": [r["row_id"] for r in evaluated_rows if r["status"] == "PASS"]
         },
-        "details": evaluated_rows  # Contains all rows (Pass and Fail)
+        # "details": evaluated_rows  # Removed to prevent LLM token limit errors. Full results are in the Excel file.
     }

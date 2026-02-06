@@ -20,6 +20,7 @@ from rag.tools.corpus.corpus_tools import (
 from rag.tools.lifecycle.lifecycle_main import automated_evaluation_testcase
 from rag.tools.tone_management.tone_tools import tone_management
 from rag.tools.storage.storage_tools import create_gcs_bucket, list_blobs
+from rag.tools.escalation.escalation_tools import escalate_to_live_agent
 
 _rag_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
 if os.path.exists(_rag_env_path):
@@ -64,6 +65,7 @@ root_agent = Agent(
         tone_management,
         create_gcs_bucket,
         list_blobs,
+        escalate_to_live_agent,
     ],
     output_key=AGENT_OUTPUT_KEY
 )
