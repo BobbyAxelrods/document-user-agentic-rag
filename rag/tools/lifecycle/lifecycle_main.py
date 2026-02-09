@@ -88,7 +88,8 @@ def _evaluate_with_llm(query: str, response: str, ground_truth: str) -> Dict[str
     Evaluates RAG response against ground truth using LiteLLM (matching Agent's config).
     """
     try:
-        model_name = os.getenv("AZURE", "azure/gpt-4o")
+        #model_name = os.getenv("AZURE", "azure/gpt-4o")
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-pro")
         
         prompt = f"""
         You are an expert evaluator for RAG systems.
@@ -128,8 +129,9 @@ def _generate_answer(query: str, context: str) -> str:
     Generates an answer based on the query and retrieved context using the LLM.
     """
     try:
-        model_name = os.getenv("AZURE", "azure/gpt-4o")
-        
+        #model_name = os.getenv("AZURE", "azure/gpt-4o")
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-pro")
+
         prompt = f"""
         You are a helpful assistant. Answer the user's query based ONLY on the provided context.
         If the answer is not in the context, say "I cannot answer this based on the provided information."
@@ -159,8 +161,8 @@ def _generate_answer(query: str, context: str) -> str:
 # =================MAIN PROCESS =====================
 def automated_evaluation_testcase(
     tool_context : ToolContext,
-    candidate_corpus: str,
-    excel_path:str,
+    #candidate_corpus: str,
+    #excel_path:str,
 
 ) -> Dict[str,Any]:
 
@@ -177,7 +179,8 @@ def automated_evaluation_testcase(
     """
 
     # Read Excel 
-    df = pd.read_excel(excel_path)
+    excel_path = "./evaluation_files/EMO, POLICY & VAS QA_updated.xlsx"
+    df = pd.read_excel(excel_path, sheet_name="Sheet2")
     
     # Identify columns (flexible) by checking lowercase stripped versions but keeping original headers
     # Create a mapping for easy lookup
@@ -191,10 +194,12 @@ def automated_evaluation_testcase(
     truth_col = col_map[truth_col_name] if truth_col_name else None
 
     # Resolve Corpus ID
-    corpus_id = candidate_corpus
-    resolved_id = get_corpus_id_by_display_name(candidate_corpus)
-    if resolved_id:
-        corpus_id = resolved_id
+    
+    #corpus_id = candidate_corpus
+    corpus_id = '4532873024948404224' #prudentialpoc
+    #resolved_id = get_corpus_id_by_display_name(candidate_corpus)
+    #if resolved_id:
+    #    corpus_id = resolved_id
 
     # Check if corpus has files
     files_res = list_files(corpus_id)
@@ -260,6 +265,7 @@ def automated_evaluation_testcase(
         logger.warning(f"Failed to upload initial working copy: {e}")
     
     try:
+        df_eval = pd.DataFrame()
         for index, row in df.iterrows():
             # Add delay to avoid hitting rate limits (LLM/Vertex AI quotas)
             time.sleep(2)
@@ -323,7 +329,9 @@ def automated_evaluation_testcase(
                     out_row[k] = str(v)
             
             evaluated_rows.append(out_row)
-
+            print(evaluated_rows)
+            df_eval = pd.DataFrame(evaluated_rows)
+            
             # Checkpoint every 5 rows
             if (index + 1) % 5 == 0:
                 save_progress_to_gcs(evaluated_rows, temp_blob_path, is_temp=True)
@@ -363,6 +371,7 @@ def automated_evaluation_testcase(
         logger.error(f"Failed to save/upload regression results: {e}")
         results_gcs_uri = f"Error: {str(e)}"
 
+    df_eval.to_excel("/home/sinkitlo/guided_care/document-user-agentic-rag/evaluation_files/eval_results.xlsx", index=False)
     return {
         "status": "success",
         "project_id": PROJECT_ID,

@@ -1,5 +1,5 @@
 # Main package initialization
-from rag.agents import root_agent
+from rag.agent import root_agent
 import logging
 import vertexai
 from rag.config import PROJECT_ID, LOCATION, RAG_DEFAULT_EMBEDDING_MODEL

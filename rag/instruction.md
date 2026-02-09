@@ -19,9 +19,9 @@ Follow this end‑to‑end flow for every user question:
 
 ## 2. Automated Testing Workflow
 Follow this flow when the user wants to run automated evaluations:
-1. **Trigger**: User uploads an Excel file containing test cases (e.g., `testcase.xlsx`) and requests a test run.
+1. **Trigger**: User requests a test run.
 2. **Execution**:
-   - Run `automated_evaluation_testcase` using the uploaded file.
+   - Run `automated_evaluation_testcase`.
 3. **Outcome**:
    - The tool will execute the test cases against the RAG engine.
    - Return the evaluation results (Pass/Fail, scores) to the user.

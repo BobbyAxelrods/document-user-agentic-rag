@@ -1,7 +1,5 @@
 import os
 from google.adk.agents import Agent
-from google.adk.models.lite_llm import LiteLlm 
-from google.adk.models import Gemini
 from dotenv import load_dotenv
 from rag.config import AGENT_OUTPUT_KEY
 
@@ -28,13 +26,9 @@ if os.path.exists(_rag_env_path):
 else:
     load_dotenv()
 
-SANDBOX_ENV = os.getenv("SANDBOX", "false")
-AZURE_MODEL_NAME = os.getenv("AZURE", "azure/gpt-4o")
+SANDBOX_ENV = os.getenv("SANDBOX_ENV", "false")
 
-if SANDBOX_ENV == "true":
-    model = Gemini(model="gemini-1.5-pro-001")
-else:
-    model = LiteLlm(model=AZURE_MODEL_NAME)
+model = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 
 
 def load_instructions(instruction_file_name):

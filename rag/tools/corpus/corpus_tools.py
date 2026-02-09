@@ -1,10 +1,13 @@
 # ====================== CORPUS TOOLS =====================
 
 import vertexai
+import time
 from vertexai.preview import rag
 from google.adk.tools import FunctionTool
 from typing import Dict, Optional, Any, List
+from functools import wraps
 import sys
+import random
 import os
 
 # Ensure parent directory is in path to allow imports if running as script or module
@@ -54,6 +57,7 @@ except ImportError:
 
 # initialize vertexai
 vertexai.init(project=PROJECT_ID, location=LOCATION)
+
 
 def create_corpus(
     display_name: str,
@@ -105,6 +109,7 @@ def create_corpus(
             "message": f"Failed to create RAG corpus: {str(e)}"
         }
 
+
 def update_corpus(
     corpus_id: str,
     display_name: Optional[str] = None,
@@ -145,6 +150,7 @@ def update_corpus(
             "message": f"Failed to update RAG corpus: {str(e)}"
         }
 
+
 def list_corpora() -> Dict[str, Any]:
     """
     Lists all RAG corpora in the current project and location.
@@ -184,6 +190,7 @@ def list_corpora() -> Dict[str, Any]:
             "message": f"Failed to list RAG corpora: {str(e)}"
         }
 
+
 def get_corpus(corpus_id: str) -> Dict[str, Any]:
     """
     Retrieves details of a specific RAG corpus.
@@ -221,6 +228,7 @@ def get_corpus(corpus_id: str) -> Dict[str, Any]:
             "message": f"Failed to retrieve RAG corpus: {str(e)}"
         }
 
+
 def delete_corpus(corpus_id: str) -> Dict[str, Any]:
     """
     Deletes a RAG corpus.
@@ -240,6 +248,7 @@ def delete_corpus(corpus_id: str) -> Dict[str, Any]:
             "error_message": str(e),
             "message": f"Failed to delete RAG corpus: {str(e)}"
         }
+
 
 def import_files(
     corpus_id: str,
@@ -301,6 +310,7 @@ def import_files(
             "message": f"Failed to import files: {str(e)}"
         }
 
+
 def list_files(corpus_id: str) -> Dict[str, Any]:
     """
     Lists files in a RAG corpus.
@@ -333,6 +343,7 @@ def list_files(corpus_id: str) -> Dict[str, Any]:
             "message": f"Failed to list files: {str(e)}"
         }
 
+
 def get_file(corpus_id: str, file_id: str) -> Dict[str, Any]:
     """
     Retrieves details of a specific file in a RAG corpus.
@@ -361,6 +372,7 @@ def get_file(corpus_id: str, file_id: str) -> Dict[str, Any]:
             "message": f"Failed to get file: {str(e)}"
         }
 
+
 def delete_file_from_corpus(corpus_id: str, file_id: str) -> Dict[str, Any]:
     """
     Deletes a file from a RAG corpus.
@@ -380,6 +392,7 @@ def delete_file_from_corpus(corpus_id: str, file_id: str) -> Dict[str, Any]:
             "message": f"Failed to delete file: {str(e)}"
         }
 
+
 def query_corpus(
     corpus_id: str,
     query: str,
@@ -391,7 +404,6 @@ def query_corpus(
     """
     try:
         corpus_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/ragCorpora/{corpus_id}"
-        
         response = rag.retrieval_query(
             rag_resources=[rag.RagResource(rag_corpus=corpus_name)],
             text=query,
@@ -415,11 +427,8 @@ def query_corpus(
             "message": f"Found {len(results)} results for query"
         }
     except Exception as e:
-        return {
-            "status": "error",
-            "error_message": str(e),
-            "message": f"Failed to query corpus: {str(e)}"
-        }
+        # The decorator will handle retries, this just catches other errors
+        return {"status": "error", "error_message": str(e), "message": f"Failed to query corpus: {str(e)}"}
 
 def parallel_check_relevant_corpus(
     query: str,
@@ -427,8 +436,11 @@ def parallel_check_relevant_corpus(
 ) -> Dict[str, Any]:
     try:
         corpora = rag.list_corpora()
+        if corpora.get("status") == "error":
+            return corpora # Propagate error from list_corpora
+
         scores = []
-        for corpus in corpora:
+        for corpus in corpora.get("corpora", []):
             corpus_id = corpus.name.split('/')[-1]
             q = query_corpus(
                 corpus_id=corpus_id,
@@ -443,7 +455,7 @@ def parallel_check_relevant_corpus(
                     avg_distance = sum(ds) / len(ds)
             scores.append({
                 "corpus_id": corpus_id,
-                "display_name": corpus.display_name,
+                "display_name": corpus.get("display_name"),
                 "avg_distance": avg_distance if avg_distance is not None else 1.0,
                 "top_chunks": [
                     {
@@ -484,6 +496,7 @@ def automated_evaluation_testcase(
             "message": f"Failed to run automated evaluation: {str(e)}"
         }
 
+
 def get_corpus_id_by_display_name(display_name: str) -> Optional[str]:
     """
     Helper: Finds a corpus ID by its display name.
@@ -496,6 +509,7 @@ def get_corpus_id_by_display_name(display_name: str) -> Optional[str]:
         return None
     except:
         return None
+
 
 def get_file_id_by_name(corpus_id: str, file_display_name: str) -> Optional[str]:
     """

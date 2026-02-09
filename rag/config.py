@@ -1,13 +1,16 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 """
 Configuration settings for the Vertex AI RAG engine.
 """
 
 # Google Cloud Project Settings
-PROJECT_ID = "prudential-poc-484904"  # Replace with your project ID
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT", "prudential-poc-484904")  # Replace with your project ID
 SANDBOX_PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "prusandbx-nprd-uat-hqzxfl")  # Replace with your project ID
 
-LOCATION = "asia-east1"  # Default location for Vertex AI resources use GA 
+LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "asia-northeast1")  # Default location for Vertex AI resources use GA 
 AGENT_NAME = "pru-rag-admin"
 INSTANCE_CONNECTION_NAME = "prudential-poc-484904:asia-east1:file-metadata"
 
