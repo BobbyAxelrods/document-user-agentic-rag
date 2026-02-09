@@ -157,6 +157,43 @@ def _generate_answer(query: str, context: str) -> str:
     except Exception as e:
         return f"Generation failed: {str(e)}"
 
+def _refine_tone_with_golden_dialogue(answer: str) -> str:
+    """
+    Refines the answer's tone using an LLM to conform to Golden Dialogue principles.
+    """
+    try:
+        model_name = os.getenv("MODEL_NAME", "gemini-1.5-pro")
+
+        prompt = f"""
+        You are an expert in communication, tasked with refining an answer to align with "Golden Dialogue" principles.
+
+        Golden Dialogue Principles:
+        - **Clarity & Empathy**: Be clear, empathetic, and professional.
+        - **Action-Oriented**: Use direct and action-oriented phrasing.
+        - **Simplicity**: Avoid jargon. If jargon is necessary, explain it briefly.
+        - **Safety**: Avoid speculation. If there is uncertainty, state it explicitly.
+
+        Original Answer:
+        {answer}
+
+        Task:
+        Revise the original answer to strictly follow the Golden Dialogue principles.
+        Do not add any new information.
+        If the original answer indicates it cannot answer, keep that meaning.
+
+        Revised Answer:
+        """
+
+        completion = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        logger.warning(f"Tone refinement failed: {e}")
+        return answer # Return original answer if refinement fails
 # =================MAIN PROCESS =====================
 # =================MAIN PROCESS =====================
 def automated_evaluation_testcase(
@@ -192,28 +229,6 @@ def automated_evaluation_testcase(
     
     query_col = col_map[query_col_name]
     truth_col = col_map[truth_col_name] if truth_col_name else None
-
-    # Resolve Corpus ID
-    
-    #corpus_id = candidate_corpus
-    corpus_id = '4532873024948404224' #prudentialpoc
-    #resolved_id = get_corpus_id_by_display_name(candidate_corpus)
-    #if resolved_id:
-    #    corpus_id = resolved_id
-
-    # Check if corpus has files
-    files_res = list_files(corpus_id)
-    if files_res.get("status") != "success":
-        return {
-             "status": "error", 
-             "message": f"Failed to list files for corpus {candidate_corpus} (ID: {corpus_id}): {files_res.get('message')}"
-         }
-
-    if not files_res.get("files"):
-         return {
-             "status": "error", 
-             "message": f"Corpus {candidate_corpus} (ID: {corpus_id}) is empty. Please ensure 'create_candidate_corpus' completed successfully and files were imported."
-         }
 
     # Loop and Validate
     total_score = 0
@@ -275,27 +290,57 @@ def automated_evaluation_testcase(
             ground_truth = str(row[truth_col]) if truth_col and truth_col in df.columns else "N/A"
             if ground_truth.lower() == 'nan': ground_truth = "N/A"
             
-            # Query RAG
-            rag_result = query_corpus(corpus_id=corpus_id, query=query_text)
+            # --- Start of New Agent-like Logic ---
+
+            # 2. Select Corpus based on query
+            query_lower = query_text.lower()
+            if "pru" in query_lower or "prudential" in query_lower or "policy" in query_lower or "product" in query_lower:
+                target_corpus_display_name = "gc-phkl-policy"
+            else:
+                target_corpus_display_name = "gc-phkl-vas"
             
+            corpus_id = get_corpus_id_by_display_name(target_corpus_display_name)
+            if not corpus_id:
+                # Fallback to the original candidate_corpus if the specific one isn't found
+                logger.warning(f"Could not find corpus '{target_corpus_display_name}'. Falling back to '{candidate_corpus}'.")
+                corpus_id = get_corpus_id_by_display_name(candidate_corpus)
+                if not corpus_id:
+                     # If fallback also fails, we must skip this row.
+                    logger.error(f"Fallback corpus '{candidate_corpus}' also not found. Skipping row {index + 1}.")
+                    response_text = f"Error: Corpus '{target_corpus_display_name}' or fallback '{candidate_corpus}' not found."
+                    citations, chunks = [], []
+                    # Continue to evaluation to mark it as a failure
+                
+            # 3. Query Corpus and Generate Initial Answer
             response_text = "No response"
-            citations = []
-            chunks = []
-            if rag_result.get("status") == "success":
-                 if "results" in rag_result and rag_result["results"]:
-                     # Get top 1 chunks
-                     top_results = rag_result["results"][:5]
-                     
-                     # Prepare context from chunks
-                     context_text = "\n\n".join([r.get("text", "") for r in top_results])
-                     chunks = [r.get("text", "") for r in top_results]
-                     
-                     # Generate Answer using LLM
-                     response_text = _generate_answer(query_text, context_text)
-                     
-                     # Extract citations (source_uri)
-                     citations = list(set([r.get("source_uri", "Unknown") for r in rag_result["results"] if r.get("source_uri")]))
+            citations, chunks, chunk_ids, document_names = [], [], [], []
+
+            if corpus_id:
+                rag_result = query_corpus(corpus_id=corpus_id, query=query_text)
+                
+                if rag_result.get("status") == "success" and "results" in rag_result and rag_result["results"]:
+                    # Get top 5 chunks for context
+                    top_results = rag_result["results"][:5]
+                    
+                    # Prepare context from chunks
+                    context_text = "\n\n".join([r.get("text", "") for r in top_results])
+                    
+                    # Generate Initial Answer using LLM
+                    initial_answer = _generate_answer(query_text, context_text)
+
+                    # 4. Refine Tone with Golden Dialogue
+                    response_text = _refine_tone_with_golden_dialogue(initial_answer)
+                    
+                    # 5. Extract chunk details and citations
+                    chunks = [r.get("text", "") for r in top_results]
+                    chunk_ids = [r.get("chunk_id", "") for r in top_results]
+                    document_names = [os.path.basename(r.get("source_uri", "Unknown")) for r in top_results]
+                    citations = list(set([r.get("source_uri", "Unknown") for r in top_results if r.get("source_uri")]))
+                else:
+                    response_text = "Could not retrieve any information from the corpus to answer the query."
             
+            # --- End of New Agent-like Logic ---
+
             # Evaluate
             eval_result = _evaluate_with_llm(query_text, response_text, ground_truth)
             score = eval_result.get("score", 0.0)
@@ -311,11 +356,13 @@ def automated_evaluation_testcase(
             # 2. Append new results columns
             out_row['rag_response'] = response_text[:1000] + "..." if len(response_text) > 1000 else response_text
             
-            # Add top 1 chunk
-            for i in range(1):
-                out_row[f'chunk_{i+1}'] = chunks[i] if i < len(chunks) else ""
+            # Add top 5 chunks and their details
+            for i in range(5):
+                out_row[f'retrieved_chunk_{i+1}'] = chunks[i] if i < len(chunks) else ""
+                out_row[f'retrieved_chunk_id_{i+1}'] = chunk_ids[i] if i < len(chunk_ids) else ""
+                out_row[f'retrieved_document_name_{i+1}'] = document_names[i] if i < len(document_names) else ""
 
-            out_row['citations'] = ", ".join(citations)
+            out_row['retrieved_citations'] = ", ".join(citations)
             out_row['score'] = score
             out_row['status'] = "PASS" if is_pass else "FAIL"
             out_row['reason'] = eval_result.get("reason", "")
