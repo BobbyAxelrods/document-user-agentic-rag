@@ -1,8 +1,10 @@
 import os 
 import hashlib
+import math
 import json
 import io
 import time
+import re
 from typing import Any, Optional, List, Dict
 import pandas as pd 
 import datetime
@@ -31,6 +33,7 @@ try:
     from tools.storage.storage_tools import create_gcs_bucket, list_blobs
     from config import (
         PROJECT_ID, 
+        RAG_DEFAULT_TOP_K,
         LOCATION, 
         EVAL_BUCKET_NAME,
     )
@@ -49,6 +52,7 @@ except ImportError:
         from rag.tools.storage.storage_tools import create_gcs_bucket, list_blobs
         from rag.config import (
             PROJECT_ID, 
+            RAG_DEFAULT_TOP_K,
             LOCATION, 
             EVAL_BUCKET_NAME,
         )
@@ -66,6 +70,7 @@ except ImportError:
         from ...tools.storage.storage_tools import create_gcs_bucket, list_blobs
         from ...config import (
             PROJECT_ID, 
+            RAG_DEFAULT_TOP_K,
             LOCATION, 
             EVAL_BUCKET_NAME,
         )
@@ -155,6 +160,107 @@ def _generate_answer(query: str, context: str) -> str:
     except Exception as e:
         return f"Generation failed: {str(e)}"
 
+import math
+
+def _normalize_filename(uri: str) -> str:
+    """
+    Extracts the base filename (lowercase, no extension) from a URI or file path.
+    Example: "gs://bucket/folder/File-Name.pdf" -> "file-name"
+    Handles removing parenthesis content and normalizing separators.
+    """
+    if not uri or pd.isna(uri):
+        return ""
+    
+    # 1. Get basename
+    base = os.path.basename(str(uri))
+    
+    # 2. Remove extension
+    name = os.path.splitext(base)[0]
+    
+    # 3. Remove content in parentheses (e.g. "Treatment Sure (webpage)" -> "Treatment Sure")
+    name = re.sub(r'\([^)]*\)', '', name)
+    
+    # 4. Replace special chars ([-_]) with space
+    name = re.sub(r'[-_]', ' ', name)
+    
+    # 5. Normalize whitespace (strip and collapse multiple spaces)
+    name = " ".join(name.split())
+    
+    return name.lower()
+
+def _calculate_retrieval_metrics(retrieved_uris: List[str], ground_truth_docs: List[str], k: int = 20) -> Dict[str, float]:
+    """
+    Calculates Recall, Precision, and NDCG for retrieval.
+    """
+    # Normalize inputs
+    retrieved_norm_raw = [_normalize_filename(u) for u in retrieved_uris]
+
+    gt_norm = set([_normalize_filename(g) for g in ground_truth_docs if _normalize_filename(g)])
+    
+    if not gt_norm:
+        return {"recall": 0.0, "precision": 0.0, "ndcg": 0.0}
+
+    # Deduplicate retrieved items based on Ground Truth matching (Strict Document Level)
+    # 1. Map each retrieved item to its matched GT document (if any)
+    # 2. Deduplicate the resulting list preserving order
+    retrieved_unique = []
+    seen_docs = set() # Stores the normalized doc string (either GT name or original doc name)
+
+    for doc in retrieved_norm_raw:
+        # Check if this doc matches any Ground Truth
+        matched_gt = None
+        for gt in gt_norm:
+            # Match if strings are equal, or one is substring of another
+            if doc == gt or doc in gt or gt in doc:
+                matched_gt = gt
+                break
+        
+        # Use the matched GT name if found, otherwise use the original doc name
+        item_to_add = matched_gt if matched_gt else doc
+        
+        if item_to_add not in seen_docs:
+            retrieved_unique.append(item_to_add)
+            seen_docs.add(item_to_add)
+
+    # Slice to top K (Document Level)
+    retrieved_k = retrieved_unique[:k]
+    
+    # Calculate Matches (Strict Document Level)
+    matches_count = 0
+    dcg = 0.0
+    
+    for i, doc in enumerate(retrieved_k):
+        # Check strict existence in GT set (since we already mapped them)
+        if doc in gt_norm:
+            matches_count += 1
+            # DCG: Binary relevance = 1
+            dcg += 1.0 / math.log2(i + 2)
+
+    # 1. Recall (Document-Level)
+    # Unique Matches / Total Unique GT
+    recall = matches_count / len(gt_norm)
+    
+    # 2. Precision (Document-Level)
+    # Unique Matches / Total Unique Retrieved (Dynamic K)
+    # This ensures 1/1 = 1.0 (100%)
+    precision = matches_count / len(retrieved_k) if retrieved_k else 0.0
+    
+    # 3. NDCG (Document-Level)
+    # IDCG based on Ideal Ranking of the retrieved set size
+    # This ensures perfect ranking of available items = 1.0
+    idcg = 0.0
+    num_ideal_matches = min(len(gt_norm), len(retrieved_k))
+    for i in range(num_ideal_matches):
+        idcg += 1.0 / math.log2(i + 2)
+        
+    ndcg = dcg / idcg if idcg > 0 else 0.0
+    
+    return {
+        "recall": round(recall, 4),
+        "precision": round(precision, 4),
+        "ndcg": round(ndcg, 4)
+    }
+
 # =================MAIN PROCESS =====================
 # =================MAIN PROCESS =====================
 def automated_evaluation_testcase(
@@ -170,9 +276,10 @@ def automated_evaluation_testcase(
     1. Read the Excel file using pandas .
     2. Iterate through the rows.
     3. For each row, execute a RAG query using query_corpus .
-    4.  Compare the result with the ground truth using an LLM as a judge ().
+    4. Compare the result with the ground truth using an LLM as a judge (). # Change this adding quantitative scoring recall, precision & NDCG 
     5. Update the pandas DataFrame with the results (RAG response, Score, Pass/Fail status).
     6. Return the final DataFrame (as a dict/list of records) and summary statistics.
+    7. 
 
     """
 
@@ -186,9 +293,11 @@ def automated_evaluation_testcase(
     # Find actual column names in the dataframe
     query_col_name = next((c for c in col_map.keys() if c in ['query', 'question', 'input', 'user query']), list(col_map.keys())[0])
     truth_col_name = next((c for c in col_map.keys() if c in ['ground_truth', 'ground truth', 'groundtruth', 'expected', 'truth', 'answer', 'correct answer']), None)
+    doc_truth_col_name = next((c for c in col_map.keys() if c in ['ground truth source documents', 'source document', 'source documents', 'ground truth documents']), None)
     
     query_col = col_map[query_col_name]
     truth_col = col_map[truth_col_name] if truth_col_name else None
+    doc_truth_col = col_map[doc_truth_col_name] if doc_truth_col_name else None
 
     # Resolve Corpus ID
     corpus_id = candidate_corpus
@@ -212,6 +321,9 @@ def automated_evaluation_testcase(
 
     # Loop and Validate
     total_score = 0
+    total_recall = 0.0
+    total_precision = 0.0
+    total_ndcg = 0.0
     pass_count = 0
     evaluated_rows = []
 
@@ -259,7 +371,7 @@ def automated_evaluation_testcase(
     except Exception as e:
         logger.warning(f"Failed to upload initial working copy: {e}")
     
-    try:
+    try: ## main evaluation process ## --
         for index, row in df.iterrows():
             # Add delay to avoid hitting rate limits (LLM/Vertex AI quotas)
             time.sleep(2)
@@ -275,14 +387,19 @@ def automated_evaluation_testcase(
             response_text = "No response"
             citations = []
             chunks = []
+            retrieved_uris = []
+            
             if rag_result.get("status") == "success":
                  if "results" in rag_result and rag_result["results"]:
-                     # Get top 1 chunks
+                     # Get top 5 chunks
                      top_results = rag_result["results"][:5]
                      
                      # Prepare context from chunks
                      context_text = "\n\n".join([r.get("text", "") for r in top_results])
                      chunks = [r.get("text", "") for r in top_results]
+                     
+                     # Collect URIs for retrieval evaluation (Use ALL retrieved results, not just top 5)
+                     retrieved_uris = [r.get("source_uri", "") for r in rag_result["results"]]
                      
                      # Generate Answer using LLM
                      response_text = _generate_answer(query_text, context_text)
@@ -290,7 +407,16 @@ def automated_evaluation_testcase(
                      # Extract citations (source_uri)
                      citations = list(set([r.get("source_uri", "Unknown") for r in rag_result["results"] if r.get("source_uri")]))
             
-            # Evaluate
+            # --- Retrieval Evaluation (New) ---
+            retrieval_metrics = {"recall": 0.0, "precision": 0.0, "ndcg": 0.0}
+            if doc_truth_col and doc_truth_col in df.columns:
+                raw_gt_docs = str(row[doc_truth_col])
+                if raw_gt_docs.lower() != 'nan':
+                    # Split by comma if multiple docs
+                    gt_docs_list = [d.strip() for d in raw_gt_docs.split(',')]
+                    retrieval_metrics = _calculate_retrieval_metrics(retrieved_uris, gt_docs_list, k=RAG_DEFAULT_TOP_K)
+
+            # --- Generation Evaluation (Existing) ---
             eval_result = _evaluate_with_llm(query_text, response_text, ground_truth)
             score = eval_result.get("score", 0.0)
             
@@ -305,7 +431,17 @@ def automated_evaluation_testcase(
             # 2. Append new results columns
             out_row['rag_response'] = response_text[:1000] + "..." if len(response_text) > 1000 else response_text
             
-            # Add top 1 chunk
+            # Add Retrieval Metrics
+            out_row['retrieval_recall'] = retrieval_metrics['recall']
+            out_row['retrieval_precision'] = retrieval_metrics['precision']
+            out_row['retrieval_ndcg'] = retrieval_metrics['ndcg']
+            
+            # Aggregate metrics
+            total_recall += retrieval_metrics['recall']
+            total_precision += retrieval_metrics['precision']
+            total_ndcg += retrieval_metrics['ndcg']
+            
+            # Add top chunks
             for i in range(1):
                 out_row[f'chunk_{i+1}'] = chunks[i] if i < len(chunks) else ""
 
@@ -339,6 +475,10 @@ def automated_evaluation_testcase(
         }
 
     avg_score = total_score / len(df) if len(df) > 0 else 0
+    avg_recall = total_recall / len(df) if len(df) > 0 else 0
+    avg_precision = total_precision / len(df) if len(df) > 0 else 0
+    avg_ndcg = total_ndcg / len(df) if len(df) > 0 else 0
+    
     failures = [r["row_id"] for r in evaluated_rows if r["status"] == "FAIL"]
     
     # Save results directly to GCS
@@ -372,6 +512,9 @@ def automated_evaluation_testcase(
             "passed": pass_count,
             "failed": len(failures),
             "average_score": round(avg_score, 2),
+            "average_recall": round(avg_recall, 4),
+            "average_precision": round(avg_precision, 4),
+            "average_ndcg": round(avg_ndcg, 4),
             "failed_row_ids": failures,
             "passed_row_ids": [r["row_id"] for r in evaluated_rows if r["status"] == "PASS"]
         },

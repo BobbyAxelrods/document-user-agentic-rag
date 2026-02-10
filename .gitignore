@@ -50,3 +50,8 @@ logs/
 *.xlsx
 !regression_test.xlsx
 !EMO, POLICY & VAS QA_updated.xlsx
+RETRIEVAL_EVALUATION.md
+
+Sample-Eval.py
+RAG_testing.txt.ipynb
+chunk-level-eval.md
