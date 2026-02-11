@@ -18,7 +18,12 @@ from rag.tools.corpus.corpus_tools import (
     query_corpus,
 )
 from rag.tools.lifecycle.lifecycle_main import automated_evaluation_testcase
-from rag.tools.tone_management.tone_tools import tone_management
+from rag.tools.tone_management.tone_tools import (
+    tone_management, 
+    get_tone_guidelines_for_category, 
+    apply_tone_guidelines, 
+    validate_tone_compliance
+)
 from rag.tools.storage.storage_tools import create_gcs_bucket, list_blobs
 from rag.tools.escalation.escalation_tools import escalate_to_live_agent
 
@@ -63,6 +68,9 @@ root_agent = Agent(
         query_corpus,
         automated_evaluation_testcase,
         tone_management,
+        get_tone_guidelines_for_category,
+        apply_tone_guidelines,
+        validate_tone_compliance,
         create_gcs_bucket,
         list_blobs,
         escalate_to_live_agent,
