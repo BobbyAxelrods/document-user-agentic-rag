@@ -9,3 +9,5 @@ google-genai==1.14.0
 cloud-sql-python-connector[pg8000]
 pandas
 openpyxl
+ntlk
+thefuzz

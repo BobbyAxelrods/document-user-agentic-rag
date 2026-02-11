@@ -5,7 +5,6 @@ import vertexai
 from rag.config import PROJECT_ID, LOCATION, RAG_DEFAULT_EMBEDDING_MODEL
 logger = logging.getLogger(__name__)
 
-
 try:
     if PROJECT_ID and LOCATION:
         vertexai.init(project=PROJECT_ID, location=LOCATION)

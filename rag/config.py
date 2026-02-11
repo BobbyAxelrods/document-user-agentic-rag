@@ -24,7 +24,8 @@ GCS_LIST_BLOBS_MAX_RESULTS = 100
 STAGING_BUCKET_NAME = f"pru-rag-staging-{PROJECT_ID}"
 PROD_BUCKET_NAME = f"pru-rag-prod-{PROJECT_ID}"
 ARCHIVE_BUCKET_NAME = f"pru-rag-archive-{PROJECT_ID}"
-EVAL_BUCKET_NAME =  f"pru-rag-eval-{PROJECT_ID}"
+#EVAL_BUCKET_NAME =  f"pru-rag-eval-{PROJECT_ID}"
+EVAL_BUCKET_NAME = "guide-care-poc"
 
 # RAG Corpus Settings
 RAG_DEFAULT_EMBEDDING_MODEL = "publishers/google/models/text-embedding-005"

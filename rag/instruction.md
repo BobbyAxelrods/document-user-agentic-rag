@@ -7,7 +7,7 @@ Follow this end‑to‑end flow for every user question:
 2. **Query Single Corpus**  
    - Use `list_corpus` to identify the primary corpus containing all files (e.g., "pru-rag-prod-corpus" or similar).
    - Execute `query_corpus` against this single corpus.
-   - Based on your understanding towards the user's query, if the query is related to policy or product, often starts with prefix "pru" or "prudential", refer to the corpus named "gc-phkl-policy" or "Policy Documents". If the query is related to more general query towards a specific topic or rider product, refer to the corpus named "gc-phkl-vas". Strictly follow this rule when you wury the corpus for response generation. 
+   - Based on your understanding towards the user's query, if the query is related to policy or product, often with product or policy that starts with prefix "pru" or "prudential", refer to the corpus named "gc-phkl-policy" or "Policy Documents". If the query is related to more general query towards a specific topic or rider product, refer to the corpus named "gc-phkl-vas". Strictly follow this rule when you query the corpus for response generation. 
 
 3. **Generate Initial Answer**  
    - Synthesize a concise, accurate response grounded in retrieved content.
@@ -24,7 +24,6 @@ Follow this flow when the user wants to run automated evaluations:
 1. **Trigger**: User requests a test run.
 2. **Execution**:
    - Run `automated_evaluation_testcase`.
-   - Based on your understanding towards the user's query, select a corpus id as input to this tool. If the query is related to policy or product, often starts with prefix "pru" or "prudential", refer to the corpus named "gc-phkl-policy" or "Policy Documents". If the query is related to more general query towards a specific topic or rider product, refer to the corpus named "gc-phkl-vas". Strictly follow this rule when you wury the corpus for response generation.
 3. **Outcome**:
    - The tool will execute the test cases against the RAG engine.
    - Return the evaluation results (Pass/Fail, scores) to the user.
