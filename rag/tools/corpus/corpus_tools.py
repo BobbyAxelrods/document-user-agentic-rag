@@ -2,6 +2,7 @@
 
 import vertexai
 import time
+import litellm
 from vertexai.preview import rag
 from google.adk.tools import FunctionTool
 from typing import Dict, Optional, Any, List
@@ -9,6 +10,11 @@ from functools import wraps
 import sys
 import random
 import os
+import logging
+
+# Logger setup
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Ensure parent directory is in path to allow imports if running as script or module
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +34,7 @@ try:
         RAG_DEFAULT_CHUNK_OVERLAP,
         RAG_DEFAULT_EMBEDDING_REQUESTS_PER_MIN,
     )
+    from rag.tools.lifecycle.selector_agent import CORPUS_SELECTOR_INSTRUCTION
 except ImportError:
     try:
         from rag.config import (
@@ -392,9 +399,37 @@ def delete_file_from_corpus(corpus_id: str, file_id: str) -> Dict[str, Any]:
             "message": f"Failed to delete file: {str(e)}"
         }
 
+def _select_corpus_with_llm(query: str) -> str:
+    """
+    Uses an LLM to select the appropriate corpus based on the query.
+    This replicates the logic of the corpus_selector_agent.
+    """
+    try:
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-pro")
+        prompt = f"""
+                {CORPUS_SELECTOR_INSTRUCTION}
+
+                User Query: "{query}"
+                """
+        completion = litellm.completion(
+            model=model_name,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        # The agent is instructed to return *only* the corpus name.
+        selected_corpus = completion.choices[0].message.content.strip()
+        
+        # Basic validation to ensure it's one of the expected outputs
+        if selected_corpus in ["gc-phkl-policy", "gc-phkl-vas"]:
+            return selected_corpus
+        return "gc-phkl-vas" # Default fallback
+    except Exception as e:
+        logger.warning(f"Corpus selection with LLM failed: {e}. Defaulting to 'gc-phkl-vas'.")
+        return "gc-phkl-vas"
 
 def query_corpus(
-    corpus_id: str,
+    #corpus_id: str,
     query: str,
     similarity_top_k: int = RAG_DEFAULT_TOP_K,
     vector_distance_threshold: float = RAG_DEFAULT_VECTOR_DISTANCE_THRESHOLD
@@ -403,7 +438,12 @@ def query_corpus(
     Queries a RAG corpus.
     """
     try:
+        target_corpus_display_name = _select_corpus_with_llm(query)
+        print(target_corpus_display_name)
+        corpus_id = get_corpus_id_by_display_name(target_corpus_display_name)
+        
         corpus_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/ragCorpora/{corpus_id}"
+        # Using rag.retrieve as it's the more direct function for fetching contexts.
         response = rag.retrieval_query(
             rag_resources=[rag.RagResource(rag_corpus=corpus_name)],
             text=query,
@@ -412,13 +452,12 @@ def query_corpus(
         )
         
         results = []
-        if hasattr(response, "contexts") and hasattr(response.contexts, "contexts"):
-            for ctx in response.contexts.contexts:
-                results.append({
-                    "text": ctx.text,
-                    "source_uri": ctx.source_uri,
-                    "distance": ctx.distance
-                })
+        for chunk in response.contexts:
+            results.append({
+                "text": chunk.text,
+                "source_uri": chunk.source_uri,
+                "distance": chunk.distance
+            })
         
         return {
             "status": "success",

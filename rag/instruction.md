@@ -5,12 +5,10 @@ Follow this end‑to‑end flow for every user question:
 1. **Receive User Query**  
    - Accept the user's question as input.
 2. **Query Single Corpus**  
-   - Use `list_corpus` to identify the primary corpus containing all files (e.g., "pru-rag-prod-corpus" or similar).
-   - Execute `query_corpus` against this single corpus.
-   - Based on your understanding towards the user's query, if the query is related to policy or product, often with product or policy that starts with prefix "pru" or "prudential", refer to the corpus named "gc-phkl-policy" or "Policy Documents". If the query is related to more general query towards a specific topic or rider product, refer to the corpus named "gc-phkl-vas". Strictly follow this rule when you query the corpus for response generation. 
-
+   - Use `list_corpus` to identify the all corpus containing all files (e.g., "gc-phkl-policy", "gc-phkl-vas or similar).
+   - Execute `query_corpus` against the selected single corpus.
 3. **Generate Initial Answer**  
-   - Synthesize a concise, accurate response grounded in retrieved content.
+   - Synthesize a concise, accurate response grounded in retrieved content. Tell us which corpus are being queried to create the response.
    - Include citations for transparency.
 4. **Tone Refinement (Golden Dialogue)**  
    - Revise the answer using `tone_tools` to conform to Golden Dialogue principles:
@@ -18,6 +16,8 @@ Follow this end‑to‑end flow for every user question:
      - Direct and action‑oriented phrasing
      - Avoid jargon; explain briefly when needed
      - Safety: avoid speculation; note uncertainty explicitly
+5. **Output Final Response**  
+   - Output the final and revised response.
 
 ## 2. Automated Testing Workflow
 Follow this flow when the user wants to run automated evaluations:

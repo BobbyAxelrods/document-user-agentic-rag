@@ -144,9 +144,9 @@ def _calculate_retrieval_metrics(retrieved_chunk: List[str], ground_truth_chunk:
     gt_norm_corpus = set([_normalize_filename(g) for g in ground_truth_corpus if _normalize_filename(g)])
     
     if not gt_norm_doc and not gt_norm_chunk and not gt_norm_corpus:
-        return {"recall_doc": 0.0, "precision_doc": 0.0, "ndcg_doc": 0.0,
-                "recall_chunk": 0.0, "precision_chunk": 0.0, "ndcg_chunk": 0.0,
-                "recall_corpus": 0.0, "precision_corpus": 0.0, "ndcg_corpus": 0.0
+        return {"recall_doc": 0.0, "precision_doc": 0.0, 
+                "recall_chunk": 0.0, "precision_chunk": 0.0, 
+                "recall_corpus": 0.0, "precision_corpus": 0.0
                 }
 
     # Deduplicate retrieved items based on Ground Truth matching (Strict Document Level)
@@ -319,10 +319,10 @@ def _calculate_retrieval_metrics(retrieved_chunk: List[str], ground_truth_chunk:
     return {
         "recall_doc": round(recall_doc, 4),
         "precision_doc": round(precision_doc, 4),
-        "ndcg_doc": round(ndcg_doc, 4),
+        #"ndcg_doc": round(ndcg_doc, 4),
         "recall_chunk": round(recall_chunk, 4),
         "precision_chunk": round(precision_chunk, 4),
-        "ndcg_chunk": round(ndcg_chunk, 4),
+        #"ndcg_chunk": round(ndcg_chunk, 4),
         "recall_corpus": round(recall_corpus, 4),
         "precision_corpus": round(precision_corpus, 4),
         #"ndcg_corpus": round(ndcg_corpus, 4)
@@ -449,7 +449,7 @@ def _select_corpus_with_llm(query: str) -> str:
     This replicates the logic of the corpus_selector_agent.
     """
     try:
-        model_name = os.getenv("MODEL_NAME", "gemini-1.5-flash")
+        model_name = os.getenv("MODEL_NAME", "gemini-2.5-pro")
         prompt = f"""
                 {CORPUS_SELECTOR_INSTRUCTION}
 
@@ -638,9 +638,9 @@ def automated_evaluation_testcase(
                 bleu_score = sentence_bleu(reference, candidate, smoothing_function=smoothie)
 
             # --- Retrieval Evaluation (New) ---
-            retrieval_metrics = {"recall_doc": 0.0, "precision_doc": 0.0, "ndcg_doc": 0.0, 
-                                "recall_chunk": 0.0, "precision_chunk": 0.0, "ndcg_chunk": 0.0,
-                                "recall_corpus": 0.0, "precision_corpus": 0.0, "ndcg_c": 0.0
+            retrieval_metrics = {"recall_doc": 0.0, "precision_doc": 0.0, 
+                                "recall_chunk": 0.0, "precision_chunk": 0.0,
+                                "recall_corpus": 0.0, "precision_corpus": 0.0,
                                 }
             if doc_truth_col and doc_truth_col in df.columns and chunk_truth_col and chunk_truth_col in df.columns and corpus_truth_col and corpus_truth_col in df.columns:
                 raw_gt_docs = str(row[doc_truth_col])
@@ -677,32 +677,26 @@ def automated_evaluation_testcase(
             # Add Retrieval Metrics
             out_row['retrieval_recall_doc'] = retrieval_metrics['recall_doc']
             out_row['retrieval_precision_doc'] = retrieval_metrics['precision_doc']
-            out_row['retrieval_ndcg_doc'] = retrieval_metrics['ndcg_doc']
-
+            
             out_row['retrieval_recall_chunk'] = retrieval_metrics['recall_chunk']
             out_row['retrieval_precision_chunk'] = retrieval_metrics['precision_chunk']
-            out_row['retrieval_ndcg_chunk'] = retrieval_metrics['ndcg_chunk']
-
+            
             out_row['retrieval_recall_corpus'] = retrieval_metrics['recall_corpus']
             out_row['retrieval_precision_corpus'] = retrieval_metrics['precision_corpus']
-            #out_row['retrieval_ndcg_corpus'] = retrieval_metrics['ndcg_corpus']
-
+            
             # Aggregate metrics
             total_recall_doc += retrieval_metrics['recall_doc']
             total_precision_doc += retrieval_metrics['precision_doc']
-            total_ndcg_doc += retrieval_metrics['ndcg_doc']
-
+            
             total_recall_chunk += retrieval_metrics['recall_chunk']
             total_precision_chunk += retrieval_metrics['precision_chunk']
-            total_ndcg_chunk += retrieval_metrics['ndcg_chunk']
-
+            
             total_recall_corpus += retrieval_metrics['recall_corpus']
             total_precision_corpus += retrieval_metrics['precision_corpus']
-            #total_ndcg_corpus += retrieval_metrics['ndcg_corpus']
+            
+            retrieve_k_chunk = 1
 
-            retrieve_k_chunk = 2
-
-            # Add top 2 chunks and their details
+            # Add top 1 chunks and their details
             for i in range(retrieve_k_chunk):
                 out_row[f'retrieved_chunk_{i+1}'] = chunks[i] if i < len(chunks) else ""
                 out_row[f'retrieved_document_name_{i+1}'] = document_names[i] if i < len(document_names) else ""
@@ -727,7 +721,7 @@ def automated_evaluation_testcase(
                                 'document uri', 'retrieved_citations', 'chunk match'] + [f'retrieved_chunk_{i+1}' for i in range(0, retrieve_k_chunk)] 
                                 + ['bleu_score', 'retrieval_recall_doc', 'retrieval_recall_chunk', 'retrieval_recall_corpus',
                                'retrieval_precision_doc', 'retrieval_precision_chunk', 'retrieval_precision_corpus',
-                               'retrieval_ndcg_doc', 'retrieval_ndcg_chunk', 'status', 'reason']]
+                                'status', 'reason']]
             print(df_eval.columns)
             
             # Checkpoint every 5 rows
