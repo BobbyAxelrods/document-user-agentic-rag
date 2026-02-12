@@ -467,10 +467,10 @@ def _select_corpus_with_llm(query: str) -> str:
         # Basic validation to ensure it's one of the expected outputs
         if selected_corpus in ["gc-phkl-policy", "gc-phkl-vas"]:
             return selected_corpus
-        return "gc-phkl-vas" # Default fallback
+        return "gc-phkl-policy" # Default fallback
     except Exception as e:
         logger.warning(f"Corpus selection with LLM failed: {e}. Defaulting to 'gc-phkl-vas'.")
-        return "gc-phkl-vas"
+        return "gc-phkl-policy"
 # =================MAIN PROCESS =====================
 # =================MAIN PROCESS =====================
 def automated_evaluation_testcase(
@@ -605,7 +605,7 @@ def automated_evaluation_testcase(
             citations, chunks, document_names, retrieved_uris = [], [], [], []
 
             if corpus_id:
-                rag_result = query_corpus(corpus_id=corpus_id, query=query_text)
+                rag_result = query_corpus(query=query_text)
                 
                 if rag_result.get("status") == "success" and "results" in rag_result and rag_result["results"]:
                     # Get top 5 chunks for context

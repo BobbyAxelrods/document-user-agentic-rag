@@ -163,10 +163,10 @@ def list_corpora() -> Dict[str, Any]:
     Lists all RAG corpora in the current project and location.
     """
     try:
-        corpora = rag.list_corpora()
+        response = rag.list_corpora()
         
         corpus_list = []
-        for corpus in corpora:
+        for corpus in response.rag_corpora:
             corpus_id = corpus.name.split('/')[-1]
             
             # Safely get status
@@ -175,21 +175,25 @@ def list_corpora() -> Dict[str, Any]:
             if hasattr(corpus, "corpus_status") and hasattr(corpus.corpus_status, "state"):
                 status = str(corpus.corpus_status.state)
             
-            corpus_list.append({
-                "id": corpus_id,
-                "name": corpus.name,
-                "display_name": corpus.display_name,
-                "description": getattr(corpus, "description", None),
-                "create_time": str(getattr(corpus, "create_time", "")),
-                "status": status
-            })
+            corpus_list.append(corpus.display_name)
+
+            # corpus_list.append({
+            #     "id": corpus_id,
+            #     "name": corpus.name,
+            #     "display_name": corpus.display_name,
+            #     "description": getattr(corpus, "description", None),
+            #     "create_time": str(getattr(corpus, "create_time", "")),
+            #     "status": status
+            # })
         
-        return {
-            "status": "success",
-            "corpora": corpus_list,
-            "count": len(corpus_list),
-            "message": f"Found {len(corpus_list)} RAG corpora"
-        }
+        # return {
+        #     "status": "success",
+        #     "corpora": corpus_list,
+        #     "count": len(corpus_list),
+        #     "message": f"Found {len(corpus_list)} RAG corpora"
+        # }
+        logger.info(f"Found {corpus_list} RAG corpora")
+        return corpus_list
     except Exception as e:
         return {
             "status": "error",
@@ -399,7 +403,7 @@ def delete_file_from_corpus(corpus_id: str, file_id: str) -> Dict[str, Any]:
             "message": f"Failed to delete file: {str(e)}"
         }
 
-def _select_corpus_with_llm(query: str) -> str:
+def _select_corpus_with_llm(query: str, corpura_list: Optional[List[str]] = None) -> str:
     """
     Uses an LLM to select the appropriate corpus based on the query.
     This replicates the logic of the corpus_selector_agent.
@@ -410,6 +414,7 @@ def _select_corpus_with_llm(query: str) -> str:
                 {CORPUS_SELECTOR_INSTRUCTION}
 
                 User Query: "{query}"
+                Corpura List: {corpura_list}
                 """
         completion = litellm.completion(
             model=model_name,
@@ -419,18 +424,20 @@ def _select_corpus_with_llm(query: str) -> str:
         )
         # The agent is instructed to return *only* the corpus name.
         selected_corpus = completion.choices[0].message.content.strip()
-        
+        print(corpura_list)
+        print(selected_corpus)
         # Basic validation to ensure it's one of the expected outputs
-        if selected_corpus in ["gc-phkl-policy", "gc-phkl-vas"]:
+        if selected_corpus in corpura_list:
             return selected_corpus
-        return "gc-phkl-vas" # Default fallback
+        return "gc-phkl-policy" # Default fallback
     except Exception as e:
         logger.warning(f"Corpus selection with LLM failed: {e}. Defaulting to 'gc-phkl-vas'.")
-        return "gc-phkl-vas"
+        return "gc-phkl-policy"
 
 def query_corpus(
     #corpus_id: str,
     query: str,
+    corpura_list: List[str] = ["gc-phkl-policy", "gc-phkl-vas"],
     similarity_top_k: int = RAG_DEFAULT_TOP_K,
     vector_distance_threshold: float = RAG_DEFAULT_VECTOR_DISTANCE_THRESHOLD
 ) -> Dict[str, Any]:
@@ -438,8 +445,8 @@ def query_corpus(
     Queries a RAG corpus.
     """
     try:
-        target_corpus_display_name = _select_corpus_with_llm(query)
-        print(target_corpus_display_name)
+        target_corpus_display_name = _select_corpus_with_llm(query, corpura_list)
+        
         corpus_id = get_corpus_id_by_display_name(target_corpus_display_name)
         
         corpus_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/ragCorpora/{corpus_id}"
@@ -452,7 +459,7 @@ def query_corpus(
         )
         
         results = []
-        for chunk in response.contexts:
+        for chunk in response.contexts.contexts:
             results.append({
                 "text": chunk.text,
                 "source_uri": chunk.source_uri,

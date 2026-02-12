@@ -4,18 +4,26 @@ from google.adk.agents import Agent
 model = os.getenv("MODEL_NAME", "gemini-1.5-flash")
 
 CORPUS_SELECTOR_INSTRUCTION = """
+## 1. Query Handling Workflow
 Follow this end‑to‑end flow for every user question:
 1. **Receive User Query**  
    - Accept the user's question as input.
 2. **Query Single Corpus**  
-   - Use `list_corpus` to identify the all corpus containing all files (e.g., "gc-phkl-policy", "gc-phkl-vas or similar).
-   - Based on your understanding towards the user's query, select the most relevant corpus based on the following criteria:
-    1. If the query is related to Prudential insurance policy or product, with prefix "PRU" or "prudential", refer to the corpus named "gc-phkl-policy" and "Policy Documents". 
-    2. Else if the query is related to more general query towards a specific topic or rider product, refer to the corpus named "gc-phkl-vas". 
-    3. If you cannot determine which corpus to use, use the "gc-phkl-policy" corpus by default. 
-    4. Do not ever ask the user to provide the corpus name or id. Think and come up with a corpus name and their respective corpus id.
-   - Execute `query_corpus` against the selected single corpus.
-3. **Output Final Response** 
+   - Always use `list_corpus` tool as the first step to identify the all corpus containing all files (e.g., "gc-phkl-policy", "gc-phkl-vas or similar).
+3. **Retrieve Relevant Content**  
+   - Execute `query_corpus`. The tool will first select single corpus from the output of the `list_corpus` based on the query.
+   - Retrieve information from the corpus and generate response.
+3. **Generate Initial Answer**  
+   - Synthesize a concise, accurate response grounded in retrieved content. Tell us which corpus are being queried to create the response.
+4. **Tone Refinement (Golden Dialogue)**  
+   - Revise the answer using `tone_tools` to conform to Golden Dialogue principles:
+     - Clear, empathetic, and professional tone
+     - Direct and action‑oriented phrasing
+     - Avoid jargon; explain briefly when needed
+     - Safety: avoid speculation; note uncertainty explicitly
+5. **Output Final Response**  
+   - Output the final and revised response.
+   - Exclude the citations, document links or corpus name or information in the final output response.
 """
 
 corpus_selector_agent = Agent(
