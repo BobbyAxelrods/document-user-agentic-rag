@@ -10,10 +10,12 @@ You must follow this exact tool sequence for every user query. **NEVER** return 
 - **Action**: Call `classify_tone_group(user_query)`.
 - **Purpose**: Identify the emotional state and query category (fallback, exitflow, or system_general).
 
+
 ### **Step 2: Selective Factual Retrieval (RAG)**
 - **Decision**: 
     - If the query is factual (policies, medical, services): **Call `query_corpus`**.
     - If the query is conversational (greetings, exits): **SKIP `query_corpus`**.
+    - If the query require user policy or products information : **Call `mcp_tools`**.
 - **Discovery**: If you don't have a numerical ID for the `prudentialpoc` corpus, call `list_corpora` first.
 
 ### **Step 3: Tone Guideline Retrieval**

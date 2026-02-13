@@ -1,7 +1,5 @@
 import os
 from google.adk.agents import Agent
-from google.adk.models.lite_llm import LiteLlm 
-from google.adk.models import Gemini
 from dotenv import load_dotenv
 from rag.config import AGENT_OUTPUT_KEY
 
@@ -17,6 +15,9 @@ from rag.tools.corpus.corpus_tools import (
     delete_file_from_corpus,
     query_corpus,
 )
+
+from rag.tools.mcp_tool.mcp_tools import mcp_tool
+
 from rag.tools.lifecycle.lifecycle_main import automated_evaluation_testcase
 from rag.tools.tone_management.tone_tools import (
     tone_management, 
@@ -37,12 +38,7 @@ else:
 
 SANDBOX_ENV = os.getenv("SANDBOX", "false")
 AZURE_MODEL_NAME = os.getenv("AZURE", "azure/gpt-4o")
-
-if SANDBOX_ENV == "true":
-    model = Gemini(model="gemini-1.5-pro-001")
-else:
-    model = LiteLlm(model=AZURE_MODEL_NAME)
-
+model = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 
 def load_instructions(instruction_file_name):
     path_of_instructions = os.path.join(os.path.dirname(__file__), f"{instruction_file_name}.md")
@@ -78,6 +74,7 @@ root_agent = Agent(
         create_gcs_bucket,
         list_blobs,
         escalate_to_live_agent,
+        mcp_tool,
     ],
     output_key=AGENT_OUTPUT_KEY
 )
