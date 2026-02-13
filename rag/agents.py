@@ -22,7 +22,9 @@ from rag.tools.tone_management.tone_tools import (
     tone_management, 
     get_tone_guidelines_for_category, 
     apply_tone_guidelines, 
-    validate_tone_compliance
+    validate_tone_compliance,
+    classify_tone_group,
+    get_tone_guidelines_by_group
 )
 from rag.tools.storage.storage_tools import create_gcs_bucket, list_blobs
 from rag.tools.escalation.escalation_tools import escalate_to_live_agent
@@ -71,6 +73,8 @@ root_agent = Agent(
         get_tone_guidelines_for_category,
         apply_tone_guidelines,
         validate_tone_compliance,
+        classify_tone_group,
+        get_tone_guidelines_by_group,
         create_gcs_bucket,
         list_blobs,
         escalate_to_live_agent,

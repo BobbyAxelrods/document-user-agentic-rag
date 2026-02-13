@@ -75,6 +75,36 @@ except ImportError:
             EVAL_BUCKET_NAME,
         )
 
+# Import tone tools
+try:
+    from tools.tone_management.tone_tools import (
+        apply_tone_guidelines, 
+        validate_tone_compliance,
+        classify_tone_group,
+        get_tone_guidelines_by_group
+    )
+except ImportError:
+    try:
+        from rag.tools.tone_management.tone_tools import (
+            apply_tone_guidelines, 
+            validate_tone_compliance,
+            classify_tone_group,
+            get_tone_guidelines_by_group
+        )
+    except ImportError:
+        try:
+            from ...tools.tone_management.tone_tools import (
+                apply_tone_guidelines, 
+                validate_tone_compliance,
+                classify_tone_group,
+                get_tone_guidelines_by_group
+            )
+        except ImportError:
+            apply_tone_guidelines = None
+            validate_tone_compliance = None
+            classify_tone_group = None
+            get_tone_guidelines_by_group = None
+
 ### storage client initi
 # Initialize Storage Client
 try:
@@ -271,6 +301,14 @@ def automated_evaluation_testcase(
 ) -> Dict[str,Any]:
 
     """
+    Executes an automated evaluation of a RAG corpus using a test case Excel file.
+    
+    Args:
+        tool_context: Context for tool execution.
+        candidate_corpus: The display name or ID of the RAG corpus to evaluate.
+        excel_path: The FULL LOCAL PATH to the Excel file containing test cases (e.g., 'C:\eval\test.xlsx').
+                    The tool has direct access to the local filesystem.
+    
     Plan:
 
     1. Read the Excel file using pandas .
@@ -381,13 +419,24 @@ def automated_evaluation_testcase(
             ground_truth = str(row[truth_col]) if truth_col and truth_col in df.columns else "N/A"
             if ground_truth.lower() == 'nan': ground_truth = "N/A"
             
-            # Query RAG
+            # Query RAG - Content Corpus
             rag_result = query_corpus(corpus_id=corpus_id, query=query_text)
-            
+            factual_context_found = rag_result.get("status") == "success" and bool(rag_result.get("results"))
+
+            # Tone Grouping & Retrieval (New 4-step workflow)
+            tone_group = "system_general"
+            tone_guidelines = ""
+            if classify_tone_group:
+                tone_group = classify_tone_group(query_text, factual_context_found)
+                if get_tone_guidelines_by_group:
+                    tone_guidelines = get_tone_guidelines_by_group(tone_group)
+
             response_text = "No response"
+            factual_response = "No factual response"
             citations = []
             chunks = []
             retrieved_uris = []
+            tone_eval = {}
             
             if rag_result.get("status") == "success":
                  if "results" in rag_result and rag_result["results"]:
@@ -401,8 +450,22 @@ def automated_evaluation_testcase(
                      # Collect URIs for retrieval evaluation (Use ALL retrieved results, not just top 5)
                      retrieved_uris = [r.get("source_uri", "") for r in rag_result["results"]]
                      
-                     # Generate Answer using LLM
-                     response_text = _generate_answer(query_text, context_text)
+                     # 1. Generate Factual Answer using LLM
+                     factual_response = _generate_answer(query_text, context_text)
+                     
+                     # 2. Apply Tone Guidelines (Sandwich Prompt)
+                     if apply_tone_guidelines and tone_guidelines:
+                         response_text = apply_tone_guidelines(factual_response, tone_guidelines, query_text)
+                     else:
+                         response_text = factual_response
+
+                     # 3. Validate Tone Compliance
+                     if validate_tone_compliance:
+                         tone_eval_str = validate_tone_compliance(response_text, tone_guidelines)
+                         try:
+                             tone_eval = json.loads(tone_eval_str)
+                         except:
+                             tone_eval = {"error": "Failed to parse tone evaluation"}
                      
                      # Extract citations (source_uri)
                      citations = list(set([r.get("source_uri", "Unknown") for r in rag_result["results"] if r.get("source_uri")]))
@@ -429,7 +492,18 @@ def automated_evaluation_testcase(
             out_row = row.to_dict()
             
             # 2. Append new results columns
+            out_row['factual_response'] = factual_response[:1000] + "..." if len(factual_response) > 1000 else factual_response
             out_row['rag_response'] = response_text[:1000] + "..." if len(response_text) > 1000 else response_text
+            out_row['tone_group'] = tone_group
+            out_row['tone_guidelines'] = tone_guidelines
+            
+            # Add Tone Metrics
+            out_row['tone_empathy_score'] = tone_eval.get('empathy_score', 0)
+            out_row['tone_clarity_score'] = tone_eval.get('clarity_score', 0)
+            out_row['tone_professionalism_score'] = tone_eval.get('professionalism_score', 0)
+            out_row['tone_compliance_score'] = tone_eval.get('compliance_score', 0)
+            out_row['tone_overall_score'] = tone_eval.get('overall_score', 0)
+            out_row['tone_feedback'] = tone_eval.get('feedback', "")
             
             # Add Retrieval Metrics
             out_row['retrieval_recall'] = retrieval_metrics['recall']
