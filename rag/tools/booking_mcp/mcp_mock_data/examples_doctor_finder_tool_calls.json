@@ -1,0 +1,30 @@
+[
+  {
+    "description": "Cardiology in Central, female, first page",
+    "tool": "doctorFinder_search",
+    "arguments": {
+      "specialtyId": "SP-CARD",
+      "districtId": "HK-CEN",
+      "gender": "Female",
+      "limit": 10,
+      "pageToken": null
+    }
+  },
+  {
+    "description": "Provider free-text disambiguation for 'clinic'",
+    "tool": "doctorFinder_searchProviders",
+    "arguments": {
+      "providerFreeText": "clinic",
+      "limit": 10
+    }
+  },
+  {
+    "description": "Doctor name fuzzy search",
+    "tool": "doctorFinder_search",
+    "arguments": {
+      "specialtyId": "SP-DERM",
+      "doctorName": "Dr Chan",
+      "limit": 10
+    }
+  }
+]

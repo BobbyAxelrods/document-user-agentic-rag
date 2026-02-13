@@ -16,7 +16,7 @@ from rag.tools.corpus.corpus_tools import (
     query_corpus,
 )
 
-from rag.tools.mcp_tool.mcp_tools import mcp_tool
+# from rag.tools.mcp_tool.mcp_tools import mcp_tool
 
 from rag.tools.lifecycle.lifecycle_main import automated_evaluation_testcase
 from rag.tools.tone_management.tone_tools import (
@@ -74,7 +74,6 @@ root_agent = Agent(
         create_gcs_bucket,
         list_blobs,
         escalate_to_live_agent,
-        mcp_tool,
     ],
     output_key=AGENT_OUTPUT_KEY
 )

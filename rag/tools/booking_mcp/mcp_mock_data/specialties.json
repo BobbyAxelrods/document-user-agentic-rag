@@ -1,0 +1,57 @@
+[
+  {
+    "specialty_id": "SP-CARD",
+    "name_en": "Cardiology",
+    "name_zh": "心臟科",
+    "synonyms": [
+      "heart doctor",
+      "cardio",
+      "cardiologist"
+    ]
+  },
+  {
+    "specialty_id": "SP-DERM",
+    "name_en": "Dermatology",
+    "name_zh": "皮膚科",
+    "synonyms": [
+      "skin doctor",
+      "derm"
+    ]
+  },
+  {
+    "specialty_id": "SP-ENT",
+    "name_en": "ENT",
+    "name_zh": "耳鼻喉科",
+    "synonyms": [
+      "ear nose throat",
+      "otolaryngology"
+    ]
+  },
+  {
+    "specialty_id": "SP-ORTH",
+    "name_en": "Orthopedics",
+    "name_zh": "骨科",
+    "synonyms": [
+      "bone doctor",
+      "ortho"
+    ]
+  },
+  {
+    "specialty_id": "SP-GAST",
+    "name_en": "Gastroenterology",
+    "name_zh": "腸胃科",
+    "synonyms": [
+      "stomach doctor",
+      "GI"
+    ]
+  },
+  {
+    "specialty_id": "SP-OPHT",
+    "name_en": "Ophthalmology",
+    "name_zh": "眼科",
+    "synonyms": [
+      "eye doctor",
+      "ophthalmologist"
+    ]
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "provider_id": "PR-EC-MKK",
+    "name": "EC Healthcare Medical Centre (Mongkok)",
+    "type": "Clinic",
+    "district_id": "KL-MKK",
+    "address": "L54, Langham Place Office Tower, 8 Argyle Street",
+    "phone": "2156 5816",
+    "preferred": true
+  },
+  {
+    "provider_id": "PR-QH-CEN",
+    "name": "Queen's Hospital (Central Outpatient)",
+    "type": "Hospital",
+    "district_id": "HK-CEN",
+    "address": "1 Queen's Road Central",
+    "phone": "9876 1111",
+    "preferred": true
+  },
+  {
+    "provider_id": "PR-HKENT-WCH",
+    "name": "HK ENT Specialist Centre",
+    "type": "Clinic",
+    "district_id": "HK-WCH",
+    "address": "Unit 1203, Wanchai Tower",
+    "phone": "2911 2233",
+    "preferred": true
+  },
+  {
+    "provider_id": "PR-VT-ST",
+    "name": "Virtus Network Clinic (Sha Tin)",
+    "type": "Clinic",
+    "district_id": "NT-ST",
+    "address": "Shop 12, New Town Plaza",
+    "phone": "2345 6789",
+    "preferred": false
+  },
+  {
+    "provider_id": "PR-SKIN-KL",
+    "name": "Kowloon Skin & Laser",
+    "type": "Clinic",
+    "district_id": "KL-TST",
+    "address": "10 Nathan Road",
+    "phone": "3123 4455",
+    "preferred": false
+  },
+  {
+    "provider_id": "PR-ORTH-TM",
+    "name": "Tuen Mun Ortho Centre",
+    "type": "Clinic",
+    "district_id": "NT-TM",
+    "address": "2 Tuen Mun Road",
+    "phone": "2666 7788",
+    "preferred": false
+  }
+]

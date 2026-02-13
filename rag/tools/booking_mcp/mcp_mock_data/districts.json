@@ -1,0 +1,44 @@
+[
+  {
+    "district_id": "HK-CEN",
+    "name_en": "Central",
+    "name_zh": "中環",
+    "category": "Hong Kong Island"
+  },
+  {
+    "district_id": "HK-WCH",
+    "name_en": "Wan Chai",
+    "name_zh": "灣仔",
+    "category": "Hong Kong Island"
+  },
+  {
+    "district_id": "HK-EAS",
+    "name_en": "Eastern",
+    "name_zh": "東區",
+    "category": "Hong Kong Island"
+  },
+  {
+    "district_id": "KL-MKK",
+    "name_en": "Mong Kok",
+    "name_zh": "旺角",
+    "category": "Kowloon"
+  },
+  {
+    "district_id": "KL-TST",
+    "name_en": "Tsim Sha Tsui",
+    "name_zh": "尖沙咀",
+    "category": "Kowloon"
+  },
+  {
+    "district_id": "NT-ST",
+    "name_en": "Sha Tin",
+    "name_zh": "沙田",
+    "category": "New Territories"
+  },
+  {
+    "district_id": "NT-TM",
+    "name_en": "Tuen Mun",
+    "name_zh": "屯門",
+    "category": "New Territories"
+  }
+]

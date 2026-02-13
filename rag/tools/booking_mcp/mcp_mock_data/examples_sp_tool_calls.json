@@ -1,0 +1,114 @@
+[
+  {
+    "description": "Eligibility check for self",
+    "tool": "sp_checkEligibility",
+    "arguments": {
+      "customerId": "CUST-001",
+      "forWhom": "self"
+    }
+  },
+  {
+    "description": "List life assured",
+    "tool": "sp_listLifeAssured",
+    "arguments": {
+      "customerId": "CUST-001"
+    }
+  },
+  {
+    "description": "Validate a correct draft",
+    "tool": "sp_validateAppointmentDraft",
+    "arguments": {
+      "draft": {
+        "forWhom": "self",
+        "specialtyId": "SP-CARD",
+        "districtId": "HK-CEN",
+        "gender": "Female",
+        "policyId": "POL-001",
+        "slots": [
+          {
+            "date": "2026-02-11",
+            "slot_id": "SLOT-0900-1100"
+          },
+          {
+            "date": "2026-02-13",
+            "slot_id": "SLOT-1400-1600"
+          }
+        ],
+        "doctorId": "DR-0001",
+        "providerId": "PR-QH-CEN"
+      }
+    }
+  },
+  {
+    "description": "Validate an incorrect draft",
+    "tool": "sp_validateAppointmentDraft",
+    "arguments": {
+      "draft": {
+        "forWhom": "life_assured",
+        "lifeAssuredId": "LA-999-9",
+        "specialtyId": "SP-UNKNOWN",
+        "policyId": "POL-999",
+        "slots": [
+          {
+            "date": "2026-02-10",
+            "slot_id": "SLOT-0000-0100"
+          },
+          {
+            "date": "bad-date",
+            "slot_id": "SLOT-0900-1100"
+          },
+          {
+            "date": "2026-02-11",
+            "slot_id": "SLOT-1100-1300"
+          },
+          {
+            "date": "2026-02-12",
+            "slot_id": "SLOT-1600-1800"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "description": "Submit to PHT (mock)",
+    "tool": "sp_submitToPHT",
+    "arguments": {
+      "appointmentRequest": {
+        "forWhom": "self",
+        "specialtyId": "SP-CARD",
+        "districtId": "HK-CEN",
+        "gender": "Female",
+        "policyId": "POL-001",
+        "slots": [
+          {
+            "date": "2026-02-11",
+            "slot_id": "SLOT-0900-1100"
+          },
+          {
+            "date": "2026-02-13",
+            "slot_id": "SLOT-1400-1600"
+          }
+        ],
+        "doctorId": "DR-0001",
+        "providerId": "PR-QH-CEN"
+      },
+      "idempotencyKey": "demo-key-001"
+    }
+  },
+  {
+    "description": "Get confirmation by appointmentId",
+    "tool": "sp_getAppointmentConfirmation",
+    "arguments": {
+      "appointmentId": "APT-001"
+    }
+  },
+  {
+    "description": "Reschedule requires human",
+    "tool": "sp_requestRescheduleOrCancel",
+    "arguments": {
+      "conversationId": "CONV-123",
+      "intent": "reschedule",
+      "appointmentId": "APT-001"
+    }
+  }
+]
