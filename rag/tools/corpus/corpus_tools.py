@@ -24,6 +24,7 @@ try:
         RAG_DEFAULT_CHUNK_SIZE,
         RAG_DEFAULT_CHUNK_OVERLAP,
         RAG_DEFAULT_EMBEDDING_REQUESTS_PER_MIN,
+        RAG_DEFAULT_CORPUS_ID,
     )
 except ImportError:
     try:
@@ -37,6 +38,7 @@ except ImportError:
             RAG_DEFAULT_CHUNK_SIZE,
             RAG_DEFAULT_CHUNK_OVERLAP,
             RAG_DEFAULT_EMBEDDING_REQUESTS_PER_MIN,
+            RAG_DEFAULT_CORPUS_ID,
         )
     except ImportError:
         # Fallback for relative import if master is not a package
@@ -50,6 +52,7 @@ except ImportError:
             RAG_DEFAULT_CHUNK_SIZE,
             RAG_DEFAULT_CHUNK_OVERLAP,
             RAG_DEFAULT_EMBEDDING_REQUESTS_PER_MIN,
+            RAG_DEFAULT_CORPUS_ID,
         )
 
 # initialize vertexai
@@ -390,6 +393,10 @@ def query_corpus(
     Queries a RAG corpus.
     """
     try:
+        resolved_id = get_corpus_id_by_display_name(corpus_id)
+        if resolved_id:
+            corpus_id = resolved_id
+
         corpus_name = f"projects/{PROJECT_ID}/locations/{LOCATION}/ragCorpora/{corpus_id}"
         
         response = rag.retrieval_query(

@@ -1,0 +1,34 @@
+[
+    {
+        "user_id": "test_123",
+        "policy_id": "936005",
+        "policy_number": "CHA60YK3MV",
+        "policy_product_code": "PRUWL001",
+        "policy_product_name": "Whole Life Protection",
+        "policy_product_category": "Whole Life",
+        "policy_product_id": "PRU001",
+        "policy_product_description": "Provides lifetime coverage with guaranteed cash value accumulation."
+    },
+    {
+        "user_id": "test_456",
+        "policy_id": "PL10001",
+        "policy_number": "MED-2023-0001",
+        "policy_product_name": "MediSecure Plus",
+        "policy_product_code": "MED001",
+        "policy_product_category": "Base Product",
+        "policy_product_id": "PRD100",
+        "policy_product_description": "Full-coverage medical protection with optional riders and flexible payment plans."
+
+    },
+    {
+        "user_id": "test_789",
+        "policy_id": "PL10002",
+        "policy_number": "MED-2023-0002",
+        "policy_product_name": "HealthFirst Basic",
+        "policy_product_code": "MED002",
+        "policy_product_category": "Base Product",
+        "policy_product_id": "PRD101",
+        "policy_product_description": "Essential health insurance that covers core inpatient and outpatient services at a competitive price."
+    }
+
+]

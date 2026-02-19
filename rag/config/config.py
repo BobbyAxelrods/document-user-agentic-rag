@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 # but included for safety when importing config directly)
 load_dotenv()
 
-# Vertex AI settings
 PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", )
 LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "asia-east1")
 RAG_BACKEND = os.environ.get("RAG_BACKEND", "vertex").lower()
@@ -23,6 +22,9 @@ AZURE_EMBEDDING_MODEL = os.environ.get("AZURE_EMBEDDING_MODEL")
 RAG_MODE = "local"
 USE_CHROMA = "chroma"
 EVAL_BUCKET_NAME = "Eval"
+
+RAG_MEMORY_BACKEND = os.environ.get("RAG_MEMORY_BACKEND", "inmemory").lower()
+USE_VERTEX_MEMORY = RAG_MEMORY_BACKEND == "vertex"
 
 # RAG settings
 DEFAULT_CHUNK_SIZE = 512
@@ -42,6 +44,7 @@ GCS_DEFAULT_STORAGE_CLASS = "STANDARD"
 GCS_DEFAULT_LOCATION = "ASIA"
 GCS_LIST_BUCKETS_MAX_RESULTS = 50
 GCS_LIST_BLOBS_MAX_RESULTS = 100
+GOOGLE_GENAI_USE_VERTEXAI = "false"
 
 # RAG Corpus Settings
 RAG_DEFAULT_EMBEDDING_MODEL = "publishers/google/models/text-embedding-005"
@@ -51,9 +54,9 @@ RAG_DEFAULT_VECTOR_DISTANCE_THRESHOLD = 0.5
 RAG_DEFAULT_CHUNK_SIZE = 512
 RAG_DEFAULT_CHUNK_OVERLAP = 100
 RAG_DEFAULT_EMBEDDING_REQUESTS_PER_MIN = 1000
+RAG_DEFAULT_CORPUS_ID = os.environ.get("RAG_DEFAULT_CORPUS_ID", "5685794529555251200")
 
 # Logging Settings
 LOG_LEVEL = "INFO"
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 AGENT_OUTPUT_KEY = "last_response"
- 

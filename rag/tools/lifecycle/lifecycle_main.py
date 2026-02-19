@@ -17,8 +17,14 @@ import litellm
 import sys
 from google.cloud.sql.connector import Connector, IPTypes
 from dotenv import load_dotenv
+from google import genai
 
-# Import corpus tools
+_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), ".env")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
+else:
+    load_dotenv()
+
 try:
     from tools.corpus.corpus_tools import (
         get_corpus_id_by_display_name,
@@ -105,8 +111,9 @@ except ImportError:
             classify_tone_group = None
             get_tone_guidelines_by_group = None
 
-### storage client initi
-# Initialize Storage Client
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 try:
     storage_client = storage.Client(project=PROJECT_ID)
 except Exception as e:
@@ -114,17 +121,26 @@ except Exception as e:
     storage_client = None
 
 
-# Logger setup
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+def _get_genai_client() -> Optional[genai.Client]:
+    use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
+    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = os.getenv("GENAI_LOCATION") or os.getenv("GOOGLE_CLOUD_LOCATION") or LOCATION
+    if use_vertex and project_id and location:
+        try:
+            return genai.Client(vertexai=True, project=project_id, location=location)
+        except Exception:
+            return None
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if api_key:
+        try:
+            return genai.Client(api_key=api_key)
+        except Exception:
+            return None
+    return None
 
 def _evaluate_with_llm(query: str, response: str, ground_truth: str) -> Dict[str, Any]:
-    """
-    Evaluates RAG response against ground truth using LiteLLM (matching Agent's config).
-    """
     try:
-        model_name = os.getenv("AZURE", "azure/gpt-4o")
-        
+        client = _get_genai_client()
         prompt = f"""
         You are an expert evaluator for RAG systems.
         
@@ -143,28 +159,31 @@ def _evaluate_with_llm(query: str, response: str, ground_truth: str) -> Dict[str
             "reason": "string"
         }}
         """
-        
-        completion = litellm.completion(
-            model=model_name,
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={ "type": "json_object" }
-        )
-        
-        content = completion.choices[0].message.content
+        if client:
+            model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+            completion = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            content = completion.text or ""
+        else:
+            model_name = os.getenv("AZURE", "azure/gpt-4o")
+            completion = litellm.completion(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant designed to output JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" }
+            )
+            content = completion.choices[0].message.content
         return json.loads(content)
     except Exception as e:
         return {"score": 0.0, "reason": f"Evaluation failed: {str(e)}"}
 
 def _generate_answer(query: str, context: str) -> str:
-    """
-    Generates an answer based on the query and retrieved context using the LLM.
-    """
     try:
-        model_name = os.getenv("AZURE", "azure/gpt-4o")
-        
+        client = _get_genai_client()
         prompt = f"""
         You are a helpful assistant. Answer the user's query based ONLY on the provided context.
         If the answer is not in the context, say "I cannot answer this based on the provided information."
@@ -177,7 +196,15 @@ def _generate_answer(query: str, context: str) -> str:
         
         Answer:
         """
-        
+        if client:
+            model_name = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+            completion = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            text = completion.text or ""
+            return text.strip()
+        model_name = os.getenv("AZURE", "azure/gpt-4o")
         completion = litellm.completion(
             model=model_name,
             messages=[
@@ -185,7 +212,6 @@ def _generate_answer(query: str, context: str) -> str:
                 {"role": "user", "content": prompt}
             ]
         )
-        
         return completion.choices[0].message.content.strip()
     except Exception as e:
         return f"Generation failed: {str(e)}"

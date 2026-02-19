@@ -1,0 +1,12 @@
+[
+  {
+    "query": "I'm worried about my diabetes medication costs. What does my health plan cover?",
+    "expected_tool_use": [],
+    "reference": "I understand why you are worried about your medication costs. Based on your plan details, diabetes medicines are usually covered with a fixed co-payment or percentage. I recommend checking your latest benefit table or speaking with our team so we can confirm the exact amount for your prescription."
+  },
+  {
+    "query": "Can I talk to a real person about my claim? I'm very frustrated.",
+    "expected_tool_use": [],
+    "reference": "I am sorry that this claim situation has been frustrating for you. A care colleague can review your claim details with you and explain what has happened. I can help connect you to a person or guide you on how to request a call back from our claims team."
+  ]
+
